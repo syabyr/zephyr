@@ -1,0 +1,26 @@
+# SPDX-License-Identifier: Apache-2.0
+
+description: TI Tiva C General-Purpose Timer (GPTM) PWM
+
+compatible: "ti,tiva-c-gptm-pwm"
+
+include: [pwm-controller.yaml, base.yaml, pinctrl-device.yaml]
+
+properties:
+  reg:
+    required: true
+
+  clock-frequency:
+    type: int
+    required: true
+    description: |
+      Clock frequency feeding the timer module, in Hz.
+      Typically equal to the system clock (80000000 for TM4C123 at 80 MHz).
+
+  "#pwm-cells":
+    const: 3
+
+pwm-cells:
+  - channel
+  - period
+  - flags
