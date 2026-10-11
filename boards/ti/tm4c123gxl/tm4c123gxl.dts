@@ -11,6 +11,7 @@
 #include <dt-bindings/gpio/gpio.h>
 #include <dt-bindings/input/input-event-codes.h>
 #include <dt-bindings/pinctrl/tiva-c-pinctrl.h>
+#include <dt-bindings/pwm/pwm.h>
 
 /*
  * Pin configuration nodes for UART0 and UART1.
@@ -32,6 +33,19 @@
 	uart1_tx_pb1: uart1_tx_pb1 {
 		pinmux = <TIVA_C_PINMUX(TIVA_C_PORT_B, 1, 1, TIVA_C_TYPE_UART)>;
 	};
+
+	/* PWM pins for RGB LED (PF1/PF2/PF3) */
+	pwm_red_pf1: pwm_red_pf1 {
+		pinmux = <TIVA_C_PINMUX(TIVA_C_PORT_F, 1, 7, TIVA_C_TYPE_PWM)>;
+	};
+
+	pwm_green_pf2: pwm_green_pf2 {
+		pinmux = <TIVA_C_PINMUX(TIVA_C_PORT_F, 2, 7, TIVA_C_TYPE_PWM)>;
+	};
+
+	pwm_blue_pf3: pwm_blue_pf3 {
+		pinmux = <TIVA_C_PINMUX(TIVA_C_PORT_F, 3, 7, TIVA_C_TYPE_PWM)>;
+	};
 };
 
 / {
@@ -42,6 +56,9 @@
 		led0 = &led_red;
 		led1 = &led_blue;
 		led2 = &led_green;
+		pwm-led0 = &pwm_red;
+		pwm-led1 = &pwm_green;
+		pwm-led2 = &pwm_blue;
 		sw0 = &user_button_sw1;
 		sw1 = &user_button_sw2;
 	};
@@ -66,6 +83,25 @@
 		led_green: led_green {
 			gpios = <&gpio5 3 GPIO_ACTIVE_HIGH>;
 			label = "GREEN LED (PF3)";
+		};
+	};
+
+	pwmleds {
+		compatible = "pwm-leds";
+
+		pwm_red: pwm_red {
+			pwms = <&timer0 1 20000000 PWM_POLARITY_NORMAL>;
+			label = "Red PWM LED (PF1)";
+		};
+
+		pwm_green: pwm_green {
+			pwms = <&timer0 0 20000000 PWM_POLARITY_NORMAL>;
+			label = "Green PWM LED (PF2)";
+		};
+
+		pwm_blue: pwm_blue {
+			pwms = <&timer1 0 20000000 PWM_POLARITY_NORMAL>;
+			label = "Blue PWM LED (PF3)";
 		};
 	};
 
@@ -111,4 +147,17 @@
 /* Hibernation RTC (32.768 kHz crystal on board) */
 &hib {
 	status = "okay";
+};
+
+/* PWM Timer 0 and Timer 1 (for RGB LED on PF1/PF2/PF3) */
+&timer0 {
+	status = "okay";
+	pinctrl-0 = <&pwm_green_pf2 &pwm_red_pf1>;
+	pinctrl-names = "default";
+};
+
+&timer1 {
+	status = "okay";
+	pinctrl-0 = <&pwm_blue_pf3>;
+	pinctrl-names = "default";
 };
