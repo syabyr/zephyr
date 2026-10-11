@@ -51,7 +51,11 @@ enum gpio_regs {
 	GPIO_PUR_OFFSET = 0x510,
 	GPIO_PDR_OFFSET = 0x514,
 	GPIO_DEN_OFFSET = 0x51C,
+	GPIO_LOCK_OFFSET = 0x520,
+	GPIO_CR_OFFSET = 0x524,
 };
+
+#define GPIO_LOCK_KEY	0x4C4F434B	/* "LOCK" - unlock key */
 
 static void gpio_stellaris_isr(const struct device *dev)
 {
@@ -242,6 +246,18 @@ static int gpio_stellaris_pin_interrupt_configure(const struct device *dev,
 static int gpio_stellaris_init(const struct device *dev)
 {
 	const struct gpio_stellaris_config *cfg = dev->config;
+	uint32_t base = cfg->base;
+
+	/*
+	 * Unlock the GPIO commit register.
+	 *
+	 * Some pins (e.g. PF0 and PD7 on TM4C123) are protected by the GPIO
+	 * Lock Register and cannot be modified until GPIOLOCK is written with
+	 * the key value and the corresponding bit in GPIOCR is set.  Unlock
+	 * all 8 pins on every port so that pin configuration works uniformly.
+	 */
+	sys_write32(GPIO_LOCK_KEY, GPIO_REG_ADDR(base, GPIO_LOCK_OFFSET));
+	sys_write32(0xff, GPIO_REG_ADDR(base, GPIO_CR_OFFSET));
 
 	cfg->config_func(dev);
 	return 0;
