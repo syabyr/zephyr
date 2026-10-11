@@ -59,6 +59,9 @@
 		pwm-led0 = &pwm_red;
 		pwm-led1 = &pwm_green;
 		pwm-led2 = &pwm_blue;
+		red-pwm-led = &pwm_red;
+		green-pwm-led = &pwm_green;
+		blue-pwm-led = &pwm_blue;
 		sw0 = &user_button_sw1;
 		sw1 = &user_button_sw2;
 	};
