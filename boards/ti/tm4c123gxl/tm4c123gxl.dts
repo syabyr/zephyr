@@ -107,3 +107,8 @@
 	status = "okay";
 	label = "GPIOF";
 };
+
+/* Hibernation RTC (32.768 kHz crystal on board) */
+&hib {
+	status = "okay";
+};
