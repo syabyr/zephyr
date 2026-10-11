@@ -109,6 +109,15 @@
 			label = "GPIOF";
 		};
 
+		hib: rtc@400fc000 {
+			compatible = "ti,tiva-c-hib-rtc";
+			reg = <0x400FC000 0x200>;
+			interrupts = <43 3>;
+			clock-frequency = <32768>;
+			status = "disabled";
+			label = "HIB_RTC";
+		};
+
 		flash-controller@400fd000 {
 			compatible = "ti,stellaris-flash-controller";
 			reg = <0x400fd000 0x1000>;
