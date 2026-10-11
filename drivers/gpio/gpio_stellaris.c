@@ -42,13 +42,15 @@ struct gpio_stellaris_runtime {
 enum gpio_regs {
 	GPIO_DATA_OFFSET = 0x000,
 	GPIO_DIR_OFFSET = 0x400,
-	GPIO_DEN_OFFSET = 0x51C,
 	GPIO_IS_OFFSET = 0x404,
 	GPIO_IBE_OFFSET = 0x408,
 	GPIO_IEV_OFFSET = 0x40C,
 	GPIO_IM_OFFSET = 0x410,
 	GPIO_MIS_OFFSET = 0x418,
 	GPIO_ICR_OFFSET = 0x41C,
+	GPIO_PUR_OFFSET = 0x510,
+	GPIO_PDR_OFFSET = 0x514,
+	GPIO_DEN_OFFSET = 0x51C,
 };
 
 static void gpio_stellaris_isr(const struct device *dev)
@@ -70,10 +72,6 @@ static int gpio_stellaris_configure(const struct device *dev,
 	uint32_t base = cfg->base;
 	uint32_t port_map = cfg->port_map;
 
-	if ((flags & (GPIO_PULL_UP | GPIO_PULL_DOWN)) != 0) {
-		return -ENOTSUP;
-	}
-
 	if ((flags & GPIO_SINGLE_ENDED) != 0) {
 		return -ENOTSUP;
 	}
@@ -81,6 +79,19 @@ static int gpio_stellaris_configure(const struct device *dev,
 	/* Check for pin availability */
 	if (!sys_test_bit((uint32_t)&port_map, pin)) {
 		return -EINVAL;
+	}
+
+	if ((flags & (GPIO_PULL_UP | GPIO_PULL_DOWN)) != 0) {
+		if ((flags & GPIO_PULL_UP) != 0) {
+			sys_set_bit(GPIO_REG_ADDR(base, GPIO_PUR_OFFSET), pin);
+			sys_clear_bit(GPIO_REG_ADDR(base, GPIO_PDR_OFFSET), pin);
+		} else {
+			sys_clear_bit(GPIO_REG_ADDR(base, GPIO_PUR_OFFSET), pin);
+			sys_set_bit(GPIO_REG_ADDR(base, GPIO_PDR_OFFSET), pin);
+		}
+	} else {
+		sys_clear_bit(GPIO_REG_ADDR(base, GPIO_PUR_OFFSET), pin);
+		sys_clear_bit(GPIO_REG_ADDR(base, GPIO_PDR_OFFSET), pin);
 	}
 
 	if ((flags & GPIO_OUTPUT) != 0) {
