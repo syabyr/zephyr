@@ -1,0 +1,10 @@
+# Copyright (c) 2026
+# SPDX-License-Identifier: Apache-2.0
+
+config RTC_TIVAC
+	bool "TI Tiva C Hibernation RTC driver"
+	default y
+	depends on DT_HAS_TI_TIVA_C_HIB_RTC_ENABLED
+	help
+	  Enable support for the RTC contained in the Hibernation module
+	  of TI Tiva C (TM4C) microcontrollers.
