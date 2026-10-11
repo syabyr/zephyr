@@ -109,6 +109,24 @@
 			label = "GPIOF";
 		};
 
+		timer0: pwm@40030000 {
+			compatible = "ti,tiva-c-gptm-pwm";
+			reg = <0x40030000 0x1000>;
+			clock-frequency = <80000000>;
+			status = "disabled";
+			label = "TIMER0";
+			#pwm-cells = <3>;
+		};
+
+		timer1: pwm@40031000 {
+			compatible = "ti,tiva-c-gptm-pwm";
+			reg = <0x40031000 0x1000>;
+			clock-frequency = <80000000>;
+			status = "disabled";
+			label = "TIMER1";
+			#pwm-cells = <3>;
+		};
+
 		hib: rtc@400fc000 {
 			compatible = "ti,tiva-c-hib-rtc";
 			reg = <0x400FC000 0x200>;
