@@ -46,4 +46,16 @@ void soc_early_init_hook(void)
 	       !SysCtlPeripheralReady(SYSCTL_PERIPH_GPIOE) ||
 	       !SysCtlPeripheralReady(SYSCTL_PERIPH_GPIOF)) {
 	}
+
+	/*
+	 * Enable Timer 0 and Timer 1 peripherals for PWM and timer use.
+	 *
+	 * GPTM peripherals are used for PWM output, input capture, etc.
+	 */
+	SysCtlPeripheralEnable(SYSCTL_PERIPH_TIMER0);
+	SysCtlPeripheralEnable(SYSCTL_PERIPH_TIMER1);
+
+	while (!SysCtlPeripheralReady(SYSCTL_PERIPH_TIMER0) ||
+	       !SysCtlPeripheralReady(SYSCTL_PERIPH_TIMER1)) {
+	}
 }
