@@ -8,6 +8,7 @@
 /dts-v1/;
 
 #include <ti/tm4c123gh6pm.dtsi>
+#include <dt-bindings/gpio/gpio.h>
 #include <dt-bindings/pinctrl/tiva-c-pinctrl.h>
 
 /*
@@ -36,11 +37,33 @@
 	model = "TI Tiva C Series TM4C123GXL LaunchPad";
 	compatible = "ti,tm4c123gxl";
 
+	aliases {
+		led0 = &led_red;
+		led1 = &led_blue;
+		led2 = &led_green;
+	};
+
 	chosen {
 		zephyr,sram = &sram0;
 		zephyr,flash = &flash0;
 		zephyr,console = &uart0;
 		zephyr,shell-uart = &uart0;
+	};
+
+	leds {
+		compatible = "gpio-leds";
+		led_red: led_red {
+			gpios = <&gpio5 1 GPIO_ACTIVE_HIGH>;
+			label = "RED LED (PF1)";
+		};
+		led_blue: led_blue {
+			gpios = <&gpio5 2 GPIO_ACTIVE_HIGH>;
+			label = "BLUE LED (PF2)";
+		};
+		led_green: led_green {
+			gpios = <&gpio5 3 GPIO_ACTIVE_HIGH>;
+			label = "GREEN LED (PF3)";
+		};
 	};
 };
 
@@ -58,4 +81,10 @@
 	current-speed = <115200>;
 	pinctrl-0 = <&uart1_rx_pb0 &uart1_tx_pb1>;
 	pinctrl-names = "default";
+};
+
+/* GPIO Port F: RGB LED (PF1/PF2/PF3) and buttons (PF0/PF4) */
+&gpio5 {
+	status = "okay";
+	label = "GPIOF";
 };

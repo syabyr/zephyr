@@ -43,6 +43,72 @@
 			reg = <0x400fe000 0x1000>;
 		};
 
+		gpio0: gpio@40004000 {
+			compatible = "ti,stellaris-gpio";
+			reg = <0x40004000 0x1000>;
+			interrupts = <16 3>;
+			gpio-controller;
+			#gpio-cells = <2>;
+			ngpios = <8>;
+			status = "disabled";
+			label = "GPIOA";
+		};
+
+		gpio1: gpio@40005000 {
+			compatible = "ti,stellaris-gpio";
+			reg = <0x40005000 0x1000>;
+			interrupts = <17 3>;
+			gpio-controller;
+			#gpio-cells = <2>;
+			ngpios = <8>;
+			status = "disabled";
+			label = "GPIOB";
+		};
+
+		gpio2: gpio@40006000 {
+			compatible = "ti,stellaris-gpio";
+			reg = <0x40006000 0x1000>;
+			interrupts = <18 3>;
+			gpio-controller;
+			#gpio-cells = <2>;
+			ngpios = <8>;
+			status = "disabled";
+			label = "GPIOC";
+		};
+
+		gpio3: gpio@40007000 {
+			compatible = "ti,stellaris-gpio";
+			reg = <0x40007000 0x1000>;
+			interrupts = <19 3>;
+			gpio-controller;
+			#gpio-cells = <2>;
+			ngpios = <8>;
+			status = "disabled";
+			label = "GPIOD";
+		};
+
+		gpio4: gpio@40024000 {
+			compatible = "ti,stellaris-gpio";
+			reg = <0x40024000 0x1000>;
+			interrupts = <20 3>;
+			gpio-controller;
+			#gpio-cells = <2>;
+			ngpios = <8>;
+			status = "disabled";
+			label = "GPIOE";
+		};
+
+		gpio5: gpio@40025000 {
+			compatible = "ti,stellaris-gpio";
+			reg = <0x40025000 0x1000>;
+			interrupts = <46 3>;
+			gpio-controller;
+			#gpio-cells = <2>;
+			ngpios = <8>;
+			status = "disabled";
+			label = "GPIOF";
+		};
+
 		flash-controller@400fd000 {
 			compatible = "ti,stellaris-flash-controller";
 			reg = <0x400fd000 0x1000>;
