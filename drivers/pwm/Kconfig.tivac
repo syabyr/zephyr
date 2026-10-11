@@ -1,0 +1,14 @@
+# Copyright (c) 2026
+# SPDX-License-Identifier: Apache-2.0
+
+config PWM_TIVAC
+	bool "TI Tiva C GPTM PWM driver"
+	default y
+	depends on DT_HAS_TI_TIVA_C_GPTM_PWM_ENABLED
+	help
+	  Enable support for the PWM mode of the General-Purpose Timer
+	  Module (GPTM) on TI Tiva C (TM4C) microcontrollers.
+
+	  Each GPTM provides two independent PWM channels (Timer A and
+	  Timer B) with up to 16-bit resolution (extendable to 24 bits
+	  via the 8-bit prescaler).
