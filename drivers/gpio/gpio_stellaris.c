@@ -204,8 +204,8 @@ static int gpio_stellaris_pin_interrupt_configure(const struct device *dev,
 
 	/* Check if GPIO port needs interrupt support */
 	if (mode == GPIO_INT_MODE_DISABLED) {
-		/* Set the mask to disable the interrupt */
-		sys_set_bit(GPIO_REG_ADDR(base, GPIO_IM_OFFSET), pin);
+		/* Clear the mask to disable the interrupt */
+		sys_clear_bit(GPIO_REG_ADDR(base, GPIO_IM_OFFSET), pin);
 	} else {
 		if (mode == GPIO_INT_MODE_EDGE) {
 			sys_clear_bit(GPIO_REG_ADDR(base, GPIO_IS_OFFSET), pin);
@@ -221,8 +221,8 @@ static int gpio_stellaris_pin_interrupt_configure(const struct device *dev,
 			sys_clear_bit(GPIO_REG_ADDR(base,
 						    GPIO_IEV_OFFSET), pin);
 		}
-		/* Clear the Mask to enable the interrupt */
-		sys_clear_bit(GPIO_REG_ADDR(base, GPIO_IM_OFFSET), pin);
+		/* Set the mask to enable the interrupt */
+		sys_set_bit(GPIO_REG_ADDR(base, GPIO_IM_OFFSET), pin);
 	}
 
 	return 0;
