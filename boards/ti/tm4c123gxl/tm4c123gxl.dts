@@ -9,6 +9,7 @@
 
 #include <ti/tm4c123gh6pm.dtsi>
 #include <dt-bindings/gpio/gpio.h>
+#include <dt-bindings/input/input-event-codes.h>
 #include <dt-bindings/pinctrl/tiva-c-pinctrl.h>
 
 /*
@@ -41,6 +42,8 @@
 		led0 = &led_red;
 		led1 = &led_blue;
 		led2 = &led_green;
+		sw0 = &user_button_sw1;
+		sw1 = &user_button_sw2;
 	};
 
 	chosen {
@@ -63,6 +66,22 @@
 		led_green: led_green {
 			gpios = <&gpio5 3 GPIO_ACTIVE_HIGH>;
 			label = "GREEN LED (PF3)";
+		};
+	};
+
+	gpio_keys {
+		compatible = "gpio-keys";
+
+		user_button_sw1: button_sw1 {
+			label = "User SW1";
+			gpios = <&gpio5 4 (GPIO_PULL_UP | GPIO_ACTIVE_LOW)>;
+			zephyr,code = <INPUT_KEY_0>;
+		};
+
+		user_button_sw2: button_sw2 {
+			label = "User SW2";
+			gpios = <&gpio5 0 (GPIO_PULL_UP | GPIO_ACTIVE_LOW)>;
+			zephyr,code = <INPUT_KEY_1>;
 		};
 	};
 };
