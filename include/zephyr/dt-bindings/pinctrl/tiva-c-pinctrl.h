@@ -59,6 +59,8 @@
 #define TIVA_C_TYPE_CAN 5
 /** PWM pin type. */
 #define TIVA_C_TYPE_PWM 6
+/** USB analog pin type (DP/DM). */
+#define TIVA_C_TYPE_USB_ANALOG 7
 
 /**
  * @brief Encode a 32-bit Tiva C pinmux value.

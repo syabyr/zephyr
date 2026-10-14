@@ -46,6 +46,15 @@
 	pwm_blue_pf3: pwm_blue_pf3 {
 		pinmux = <TIVA_C_PINMUX(TIVA_C_PORT_F, 3, 7, TIVA_C_TYPE_PWM)>;
 	};
+
+	/* USB DP/DM analog pins (PD0/PD1) */
+	usb0_dm_pd4: usb0_dm_pd4 {
+		pinmux = <TIVA_C_PINMUX(TIVA_C_PORT_D, 4, 0, TIVA_C_TYPE_USB_ANALOG)>;
+	};
+
+	usb0_dp_pd5: usb0_dp_pd5 {
+		pinmux = <TIVA_C_PINMUX(TIVA_C_PORT_D, 5, 0, TIVA_C_TYPE_USB_ANALOG)>;
+	};
 };
 
 / {
@@ -162,5 +171,15 @@
 &timer1 {
 	status = "okay";
 	pinctrl-0 = <&pwm_blue_pf3>;
+	pinctrl-names = "default";
+};
+
+/* USB0 device controller (PD0=DM, PD1=DP)
+ * Note: USB signals are on BoosterPack headers, not on the debug USB port.
+ * External wiring required for testing.
+ */
+zephyr_udc0: &usb0 {
+	status = "okay";
+	pinctrl-0 = <&usb0_dm_pd4 &usb0_dp_pd5>;
 	pinctrl-names = "default";
 };

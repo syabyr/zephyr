@@ -138,8 +138,10 @@ int pinctrl_configure_pins(const pinctrl_soc_pin_t *pins,
 			tiva_c_pin_commit_unlock(base, pin_mask);
 		}
 
-		/* Set alternate-function mux */
-		GPIOPinConfigure(TIVA_C_TO_PINCFG(pm));
+		/* Set alternate-function mux (skip for analog pins) */
+		if (TIVA_C_PINMUX_TYPE(pm) != TIVA_C_TYPE_USB_ANALOG) {
+			GPIOPinConfigure(TIVA_C_TO_PINCFG(pm));
+		}
 
 		/* Configure pin type */
 		switch (TIVA_C_PINMUX_TYPE(pm)) {
@@ -160,6 +162,9 @@ int pinctrl_configure_pins(const pinctrl_soc_pin_t *pins,
 			break;
 		case TIVA_C_TYPE_PWM:
 			GPIOPinTypePWM(base, pin_mask);
+			break;
+		case TIVA_C_TYPE_USB_ANALOG:
+			GPIOPinTypeUSBAnalog(base, pin_mask);
 			break;
 		default:
 			GPIOPadConfigSet(base, pin_mask,

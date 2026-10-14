@@ -127,6 +127,16 @@
 			#pwm-cells = <3>;
 		};
 
+		usb0: usb@40050000 {
+			compatible = "ti,tiva-c-usbd";
+			reg = <0x40050000 0x1000>;
+			interrupts = <60 3>;
+			clocks = <&sysclk>;
+			peripheral-id = <0>;
+			num-bidir-endpoints = <8>;
+			status = "disabled";
+		};
+
 		hib: rtc@400fc000 {
 			compatible = "ti,tiva-c-hib-rtc";
 			reg = <0x400FC000 0x200>;

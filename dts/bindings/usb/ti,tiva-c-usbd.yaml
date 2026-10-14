@@ -1,0 +1,28 @@
+# Copyright (c) 2026
+# SPDX-License-Identifier: Apache-2.0
+
+description: |
+  TI Tiva C USB device controller
+
+  The Tiva C (TM4C) series integrates a USB 2.0 Full-Speed OTG controller
+  with 8 bidirectional endpoints and 2 KB of dedicated endpoint RAM.
+
+compatible: "ti,tiva-c-usbd"
+
+include:
+  - name: usb-ep.yaml
+  - name: pinctrl-device.yaml
+
+properties:
+  reg:
+    required: true
+
+  interrupts:
+    required: true
+
+  peripheral-id:
+    type: int
+    required: true
+    description: |
+      USB peripheral instance number (0 for USB0).
+      Used to enable the peripheral clock via SysCtlPeripheralEnable().
