@@ -1,0 +1,31 @@
+# Copyright (c) 2026
+# SPDX-License-Identifier: Apache-2.0
+
+config UDC_TIVA_C
+	bool "TI Tiva C USB device controller driver"
+	default y
+	depends on DT_HAS_TI_TIVA_C_USBD_ENABLED
+	select PINCTRL
+	select USE_TIVAWARE_USB
+	select EVENTS
+	help
+	  USB device controller driver for TI Tiva C (TM4C) microcontrollers.
+
+	  The Tiva C series integrates a USB 2.0 Full-Speed OTG controller
+	  with 8 bidirectional endpoints and 2 KB of dedicated endpoint RAM.
+
+if UDC_TIVA_C
+
+config UDC_TIVA_C_STACK_SIZE
+	int "UDC driver internal thread stack size"
+	default 1024
+	help
+	  Stack size for the UDC driver internal thread.
+
+config UDC_TIVA_C_THREAD_PRIORITY
+	int "UDC driver thread priority"
+	default 8
+	help
+	  Priority of the UDC driver thread.
+
+endif # UDC_TIVA_C
