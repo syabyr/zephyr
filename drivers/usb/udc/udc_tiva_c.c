@@ -72,7 +72,6 @@ struct udc_tiva_c_data {
 	bool ep0_setup_pending;
 };
 
-
 /* Convert Zephyr endpoint address to TivaWare endpoint index (0..7) */
 static inline uint8_t ep_idx(uint8_t ep)
 {
@@ -306,7 +305,6 @@ static void tiva_c_start_in_xfer(const struct device *dev,
 		return;
 	}
 
-
 	/*
 	 * EP0 status stage of a control write: the zero-length status IN
 	 * is armed by the DATAEND written at setup acknowledgement and
@@ -366,6 +364,8 @@ static void tiva_c_start_in_xfer(const struct device *dev,
 		}
 	} else {
 		USBEndpointDataSend(base, tiva_ep, USB_TRANS_IN);
+		if (ep_idx(cfg->addr) == 2U) {
+		}
 	}
 }
 
@@ -389,7 +389,6 @@ static void tiva_c_start_out_xfer(const struct device *dev,
 	if (udc_ep_is_busy(cfg)) {
 		return;
 	}
-
 
 	/*
 	 * EP0 status stage of a control write: the zero-length status IN
@@ -474,8 +473,7 @@ static int udc_tiva_c_ep_enqueue(const struct device *dev,
 		bit = ep_idx(ep);
 	}
 
-	atomic_set_bit(&data->xfer_new, bit);
-	k_event_post(&data->events, BIT(TIVA_C_EVT_XFER_NEW));
+	atomic_set_bit(&data->xfer_new, bit);	k_event_post(&data->events, BIT(TIVA_C_EVT_XFER_NEW));
 
 	ARG_UNUSED(config);
 
@@ -1111,9 +1109,19 @@ static void tiva_c_underrun_recover(const struct device *dev)
 			continue;
 		}
 
-		if ((HWREGB(base + off) & USB_TXCSRL1_UNDRN) != 0U) {
-			/* FLUSH alone clears the latched error (writing
-			 * UNDRN|FLUSH together has no effect on hardware) */
+		/*
+		 * Only recover an endpoint that is actually wedged: the
+		 * error latched AND no packet is pending in the FIFO.
+		 * Flushing while TXRDY is set destroys a packet that has
+		 * not been polled yet (the host bulk-in poll interval is
+		 * 125us; this loop runs every millisecond, so an
+		 * unconditional flush storms the FIFO and no packet ever
+		 * survives to the wire - measured 7000+ flushes against
+		 * 10 packets).
+		 */
+		if ((HWREGB(base + off) & (USB_TXCSRL1_UNDRN |
+					   USB_TXCSRL1_TXRDY)) ==
+		    USB_TXCSRL1_UNDRN) {
 			HWREGB(base + off) = USB_TXCSRL1_FLUSH;
 		}
 	}
@@ -1139,17 +1147,12 @@ static void udc_tiva_c_thread(const struct device *dev)
 				      false, K_MSEC(1));
 
 		/*
-		 * k_event_wait only clears returned bits for threads it
-		 * woke from pended state (or with K_EVENT_OPTION_RESET);
-		 * bits found already set are returned but LEFT SET. With
-		 * the poll fallback below, events are routinely posted
-		 * while this thread runs, so without an explicit clear the
-		 * wait would echo the same events forever and the thread
-		 * would never sleep (or poll) again.
-		 */
-		if (events != 0U) {
-			k_event_clear(&data->events, events);
-		}
+		 * NOTE: k_event_wait only clears returned bits for threads
+		 * it woke from pended state; bits found already set are
+		 * returned but LEFT SET. They are cleared AFTER the work
+		 * below has drained the atomic bitmaps (see the end of the
+		 * loop) so an event posted while this loop runs is never
+		 * lost to a premature clear.
 
 		/*
 		 * Poll fallback: on this board the USB module's interrupt
@@ -1312,6 +1315,22 @@ static void udc_tiva_c_thread(const struct device *dev)
 					}
 				}
 			}
+		}
+
+		/* Clear echo bits only for work types whose atomic bitmap is
+		 * fully drained; anything posted during this iteration stays
+		 * set and wakes the next wait immediately. */
+		if ((events & BIT(TIVA_C_EVT_XFER_NEW)) != 0U &&
+		    atomic_get(&data->xfer_new) == 0U) {
+			k_event_clear(&data->events, BIT(TIVA_C_EVT_XFER_NEW));
+		}
+		if ((events & BIT(TIVA_C_EVT_XFER_FINISHED)) != 0U &&
+		    atomic_get(&data->xfer_finished) == 0U) {
+			k_event_clear(&data->events, BIT(TIVA_C_EVT_XFER_FINISHED));
+		}
+		if ((events & BIT(TIVA_C_EVT_SETUP)) != 0U &&
+		    !data->ep0_setup_pending) {
+			k_event_clear(&data->events, BIT(TIVA_C_EVT_SETUP));
 		}
 
 unlock:
