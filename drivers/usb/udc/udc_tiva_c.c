@@ -72,6 +72,7 @@ struct udc_tiva_c_data {
 	bool ep0_setup_pending;
 };
 
+
 /* Convert Zephyr endpoint address to TivaWare endpoint index (0..7) */
 static inline uint8_t ep_idx(uint8_t ep)
 {
@@ -149,13 +150,25 @@ static uint32_t fifo_size_code(uint32_t size)
 }
 
 /*
- * Compute FIFO start address for a given endpoint index.
- * Static allocation: each EP gets 64 bytes starting at offset 64 (after EP0).
+ * Compute FIFO start address for a given endpoint.
+ *
+ * The TX and RX FIFOs of an endpoint pair are independent RAM blocks
+ * and must not overlap. Static layout in the 2 KB endpoint RAM:
+ *   [0, 64)        EP0 (shared, fixed)
+ *   [64, 512)      TX FIFOs for EP1..EP7 (64 bytes each)
+ *   [512, 1024)    RX FIFOs for EP1..EP7 (64 bytes each)
  */
-static uint16_t fifo_addr(uint8_t ep_idx)
+static uint16_t fifo_addr(uint8_t idx, bool in_dir)
 {
-	/* EP0 is at offset 0, 64 bytes; EP1+ start at offset 64 */
-	return ep_idx * 64U;
+	if (idx == 0U) {
+		return 0U;
+	}
+
+	if (in_dir) {
+		return 64U + (idx - 1U) * 64U;
+	}
+
+	return 512U + (idx - 1U) * 64U;
 }
 
 /* ------------------------------------------------------------------ */
@@ -214,7 +227,7 @@ static int tiva_c_ep_enable(const struct device *dev,
 
 	/* Configure FIFO */
 	USBFIFOConfigSet(base, tiva_ep,
-			 fifo_addr(idx),
+			 fifo_addr(idx, USB_EP_DIR_IS_IN(cfg->addr)),
 			 fifo_size_code(cfg->mps),
 			 USB_EP_DIR_IS_IN(cfg->addr) ?
 				USB_EP_DEV_IN : USB_EP_DEV_OUT);
@@ -292,6 +305,7 @@ static void tiva_c_start_in_xfer(const struct device *dev,
 	if (udc_ep_is_busy(cfg)) {
 		return;
 	}
+
 
 	/*
 	 * EP0 status stage of a control write: the zero-length status IN
@@ -375,6 +389,7 @@ static void tiva_c_start_out_xfer(const struct device *dev,
 	if (udc_ep_is_busy(cfg)) {
 		return;
 	}
+
 
 	/*
 	 * EP0 status stage of a control write: the zero-length status IN
@@ -764,12 +779,31 @@ static void udc_tiva_c_isr(const struct device *dev)
 		LOG_DBG("bus reset");
 		/*
 		 * A bus reset clears the endpoint interrupt masks in
-		 * hardware. Restore them (EP0 only, matching the
-		 * reference stacks) and drop back to the default address,
-		 * otherwise the device stays deaf after the first reset.
+		 * hardware. Restore EP0 (matching the reference stacks)
+		 * and re-enable the masks of every endpoint the stack has
+		 * configured, otherwise the device stays deaf after the
+		 * first reset and the next IN token underruns into a
+		 * stall. Drop back to the default address.
 		 */
-		HWREGB(base + USB_O_TXIE) = USB_INTEP_0;
-		HWREGB(base + USB_O_RXIE) = 0U;
+		uint16_t tx_mask = USB_INTEP_0;
+		uint16_t rx_mask = 0U;
+
+		for (uint8_t i = 1U; i < config->num_of_eps; i++) {
+			struct udc_ep_config *cfg_in =
+				udc_get_ep_cfg(dev, USB_EP_DIR_IN | i);
+			struct udc_ep_config *cfg_out =
+				udc_get_ep_cfg(dev, USB_EP_DIR_OUT | i);
+
+			if (cfg_in != NULL && cfg_in->stat.enabled) {
+				tx_mask |= BIT(i);
+			}
+			if (cfg_out != NULL && cfg_out->stat.enabled) {
+				rx_mask |= BIT(i);
+			}
+		}
+
+		HWREGH(base + USB_O_TXIE) = tx_mask;
+		HWREGH(base + USB_O_RXIE) = rx_mask;
 		HWREGB(base + USB_O_FADDR) = 0U;
 		data->ep0_setup_pending = false;
 		udc_submit_event(dev, UDC_EVT_RESET, 0);
@@ -1000,6 +1034,22 @@ static void udc_tiva_c_isr(const struct device *dev)
 		ep_idx_val = find_lsb_set(tx_status) - 1;
 		tx_status &= ~BIT(ep_idx_val);
 
+		/*
+		 * An IN endpoint that the host polled with an empty FIFO
+		 * latches UNDRN and stays wedged until the error is cleared
+		 * and the FIFO flushed; otherwise every later load is lost
+		 * silently. Clear it unconditionally when the endpoint has
+		 * an event pending.
+		 */
+		if (ep_idx_val != 0U) {
+			uint32_t off = USB_O_TXCSRL1 + 0x10U * (ep_idx_val - 1U);
+			uint32_t csrl = HWREGB(base + off);
+
+			if ((csrl & USB_TXCSRL1_UNDRN) != 0U) {
+				HWREGB(base + off) = USB_TXCSRL1_FLUSH;
+			}
+		}
+
 		if (ep_idx_val < config->num_of_eps) {
 			atomic_set_bit(&data->xfer_finished, 16 + ep_idx_val);
 			k_event_post(&data->events,
@@ -1039,6 +1089,36 @@ static void tiva_c_poll(const struct device *dev)
 	irq_unlock(key);
 }
 
+/*
+ * Recover IN endpoints wedged in UNDRN: the host polls an empty FIFO,
+ * the error latches, no interrupt event is generated and every later
+ * packet load is lost silently. Scan the configured endpoints; called
+ * every driver-thread iteration (event-driven AND poll paths) because
+ * the halt-retry storm from unused CDC notification endpoints keeps
+ * the event path busy and would starve a poll-only scan.
+ */
+static void tiva_c_underrun_recover(const struct device *dev)
+{
+	const struct udc_tiva_c_config *config = dev->config;
+	uint32_t base = config->base;
+
+	for (uint8_t i = 1U; i < config->num_of_eps; i++) {
+		struct udc_ep_config *cfg_in =
+			udc_get_ep_cfg(dev, USB_EP_DIR_IN | i);
+		uint32_t off = USB_O_TXCSRL1 + 0x10U * (i - 1U);
+
+		if (cfg_in == NULL || !cfg_in->stat.enabled) {
+			continue;
+		}
+
+		if ((HWREGB(base + off) & USB_TXCSRL1_UNDRN) != 0U) {
+			/* FLUSH alone clears the latched error (writing
+			 * UNDRN|FLUSH together has no effect on hardware) */
+			HWREGB(base + off) = USB_TXCSRL1_FLUSH;
+		}
+	}
+}
+
 static void udc_tiva_c_thread(const struct device *dev)
 {
 	struct udc_tiva_c_data *data = udc_get_private(dev);
@@ -1050,6 +1130,8 @@ static void udc_tiva_c_thread(const struct device *dev)
 	struct udc_ep_config *cfg;
 
 	while (true) {
+		tiva_c_underrun_recover(dev);
+
 		events = k_event_wait(&data->events,
 				      BIT(TIVA_C_EVT_SETUP) |
 				      BIT(TIVA_C_EVT_XFER_NEW) |
@@ -1107,15 +1189,15 @@ static void udc_tiva_c_thread(const struct device *dev)
 
 				cfg = udc_get_ep_cfg(dev, ep);
 				if (cfg == NULL) {
-					continue;
+					goto unlock;
 				}
 
 				if (cfg->stat.halted) {
-					continue;
+					goto unlock;
 				}
 
 				if (udc_ep_is_busy(cfg)) {
-					continue;
+					goto unlock;
 				}
 
 				if (USB_EP_DIR_IS_IN(ep)) {
@@ -1138,7 +1220,7 @@ static void udc_tiva_c_thread(const struct device *dev)
 
 				cfg = udc_get_ep_cfg(dev, ep);
 				if (cfg == NULL) {
-					continue;
+					goto unlock;
 				}
 
 				if (USB_EP_DIR_IS_IN(ep)) {
@@ -1152,7 +1234,7 @@ static void udc_tiva_c_thread(const struct device *dev)
 						/* More data to send */
 						udc_ep_set_busy(cfg, false);
 						tiva_c_start_in_xfer(dev, cfg);
-						continue;
+						goto unlock;
 					}
 
 					/*
@@ -1176,7 +1258,7 @@ static void udc_tiva_c_thread(const struct device *dev)
 						}
 
 						udc_ep_set_busy(cfg, true);
-						continue;
+						goto unlock;
 					}
 
 					/* Transfer complete */
@@ -1192,7 +1274,7 @@ static void udc_tiva_c_thread(const struct device *dev)
 					if (buf == NULL) {
 						/* No buffer queued, flush and continue */
 						USBFIFOFlush(base, tiva_ep, USB_EP_DEV_OUT);
-						continue;
+						goto unlock;
 					}
 
 					count = net_buf_tailroom(buf);
@@ -1232,6 +1314,7 @@ static void udc_tiva_c_thread(const struct device *dev)
 			}
 		}
 
+unlock:
 		udc_tiva_c_unlock(dev);
 	}
 }
