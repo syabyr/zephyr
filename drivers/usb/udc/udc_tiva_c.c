@@ -70,7 +70,19 @@ struct udc_tiva_c_data {
 	uint8_t setup[8];
 	/* Track EP0 state for control transfers */
 	bool ep0_setup_pending;
+#if defined(CONFIG_UDC_TIVA_C_DMA)
+	/* Per-DMA-channel state; see dma_ch_for_ep() for the mapping */
+	struct {
+		bool in_use;  /* channel configured for an endpoint */
+		bool active;  /* transfer armed and running */
+		uint8_t ep;   /* endpoint address this channel serves */
+		uint32_t count;  /* OUT: original armed byte count */
+	} dma_ch[8];
+	/* Snapshot of the last DMAINTR read (read-to-clear register) */
+	uint32_t dma_pending;
+#endif
 };
+
 
 /* Convert Zephyr endpoint address to TivaWare endpoint index (0..7) */
 static inline uint8_t ep_idx(uint8_t ep)
@@ -83,6 +95,37 @@ static inline uint32_t ep_to_tiva(uint8_t ep)
 {
 	return IndexToUSBEP(USB_EP_GET_IDX(ep));
 }
+
+#if defined(CONFIG_UDC_TIVA_C_DMA)
+/*
+ * Static DMA channel mapping: endpoint pair n (EPn IN + EPn OUT, n in
+ * 1..4) occupies channels 2*(n-1) for IN and 2*(n-1)+1 for OUT. This
+ * keeps the two directions of a pair on distinct channels (an earlier
+ * IN=n/OUT=n+1 scheme made EP1 OUT and EP2 IN collide on channel 2).
+ * EP0 always stays PIO; endpoint pairs above 4 have no channel.
+ */
+static int dma_ch_for_ep(uint8_t ep)
+{
+	uint8_t idx = ep_idx(ep);
+
+	if (idx == 0U || idx > 4U) {
+		return -1;
+	}
+
+	if (USB_EP_DIR_IS_IN(ep)) {
+		return (int)(2U * (idx - 1U));
+	}
+
+	return (int)(2U * (idx - 1U) + 1U);
+}
+
+/* Word alignment the DMAADDR register requires (bits 31:2 stored) */
+static bool dma_addr_ok(const void *buf)
+{
+	return (((uintptr_t)buf) & 0x3U) == 0U;
+}
+#endif /* CONFIG_UDC_TIVA_C_DMA */
+
 
 /* Pull next endpoint from a bitmap (same pattern as sam0 driver) */
 static inline uint8_t tiva_c_pull_ep_from_bmsk(uint32_t *const bitmap)
@@ -178,6 +221,7 @@ static int tiva_c_ep_enable(const struct device *dev,
 			     struct udc_ep_config *const cfg)
 {
 	const struct udc_tiva_c_config *config = dev->config;
+	struct udc_tiva_c_data *data = udc_get_private(dev);
 	uint32_t base = config->base;
 	uint8_t idx = ep_idx(cfg->addr);
 	uint32_t tiva_ep = ep_to_tiva(cfg->addr);
@@ -240,6 +284,36 @@ static int tiva_c_ep_enable(const struct device *dev,
 		USBIntEnableEndpoint(base, int_flag);
 	}
 
+#if defined(CONFIG_UDC_TIVA_C_DMA)
+	{
+		int ch = dma_ch_for_ep(cfg->addr);
+
+		if (ch >= 0) {
+			uint32_t dir = USB_EP_DIR_IS_IN(cfg->addr) ?
+				       USB_EP_DEV_IN : USB_EP_DEV_OUT;
+
+			/* DMA Mode 0: one completion per packet, reported
+			 * through the DMAINTR status (the normal endpoint
+			 * interrupt is suppressed for DMA'd endpoints). */
+			USBEndpointDMAConfigSet(base, tiva_ep,
+						dir | USB_EP_DMA_MODE_0);
+			USBDMAChannelConfigSet(base, ch, tiva_ep,
+					       (USB_EP_DIR_IS_IN(cfg->addr) ?
+						USB_DMA_CFG_DIR_TX :
+						USB_DMA_CFG_DIR_RX) |
+					       USB_DMA_CFG_MODE_0 |
+					       USB_DMA_CFG_BURST_4 |
+					       USB_DMA_CFG_INT_EN);
+			USBEndpointDMAEnable(base, tiva_ep, dir);
+
+			data->dma_ch[ch].in_use = true;
+			data->dma_ch[ch].active = false;
+			data->dma_ch[ch].ep = cfg->addr;
+			data->dma_ch[ch].count = 0;
+		}
+	}
+#endif
+
 	return 0;
 }
 
@@ -274,6 +348,23 @@ static int tiva_c_ep_disable(const struct device *dev,
 	USBFIFOFlush(base, tiva_ep,
 		     USB_EP_DIR_IS_IN(cfg->addr) ?
 		     USB_EP_DEV_IN : USB_EP_DEV_OUT);
+
+#if defined(CONFIG_UDC_TIVA_C_DMA)
+	{
+		struct udc_tiva_c_data *data = udc_get_private(dev);
+		int ch = dma_ch_for_ep(cfg->addr);
+
+		if (ch >= 0 && data->dma_ch[ch].in_use) {
+			uint32_t dir = USB_EP_DIR_IS_IN(cfg->addr) ?
+				       USB_EP_DEV_IN : USB_EP_DEV_OUT;
+
+			USBDMAChannelDisable(base, ch);
+			USBEndpointDMADisable(base, tiva_ep, dir);
+			data->dma_ch[ch].in_use = false;
+			data->dma_ch[ch].active = false;
+		}
+	}
+#endif
 
 	return 0;
 }
@@ -330,6 +421,28 @@ static void tiva_c_start_in_xfer(const struct device *dev,
 
 	LOG_DBG("ep 0x%02x send %d bytes (buf len %d)",
 		cfg->addr, chunk, buf->len);
+
+#if defined(CONFIG_UDC_TIVA_C_DMA)
+	{
+		struct udc_tiva_c_data *data = udc_get_private(dev);
+		int ch = dma_ch_for_ep(cfg->addr);
+
+		/* DMA path: word-aligned buffer on a DMA'd IN endpoint.
+		 * The engine fills the FIFO from memory and TXPKTRDY is
+		 * set automatically; completion arrives via DMAINTR. */
+		if (ch >= 0 && data->dma_ch[ch].in_use && chunk > 0U &&
+		    dma_addr_ok(buf->data)) {
+			USBDMAChannelAddressSet(base, ch, (void *)buf->data);
+			USBDMAChannelCountSet(base, ch, chunk);
+			data->dma_ch[ch].active = true;
+			USBDMAChannelEnable(base, ch);
+
+			net_buf_pull(buf, chunk);
+			udc_ep_set_busy(cfg, true);
+			return;
+		}
+	}
+#endif /* CONFIG_UDC_TIVA_C_DMA */
 
 	if (chunk > 0U) {
 		ret = USBEndpointDataPut(base, tiva_ep, buf->data, chunk);
@@ -415,8 +528,32 @@ static void tiva_c_start_out_xfer(const struct device *dev,
 
 	udc_ep_set_busy(cfg, true);
 
+#if defined(CONFIG_UDC_TIVA_C_DMA)
+	{
+		struct udc_tiva_c_data *data = udc_get_private(dev);
+		int ch = dma_ch_for_ep(cfg->addr);
+
+		/* Arm RX DMA: the engine waits for a packet in the RX FIFO
+		 * and moves it straight into the net_buf tail. Completion
+		 * (or short packet) is reported via DMAINTR; the remaining
+		 * count register then yields the received length. */
+		if (ch >= 0 && data->dma_ch[ch].in_use &&
+		    dma_addr_ok(net_buf_tail(buf))) {
+			uint32_t room = net_buf_tailroom(buf);
+
+			USBDMAChannelAddressSet(base, ch,
+						(void *)net_buf_tail(buf));
+			USBDMAChannelCountSet(base, ch, room);
+			data->dma_ch[ch].count = room;
+			data->dma_ch[ch].active = true;
+			USBDMAChannelEnable(base, ch);
+			return;
+		}
+	}
+#endif /* CONFIG_UDC_TIVA_C_DMA */
+
 	/*
-	 * For OUT endpoints, we wait for data to arrive via interrupt.
+	 * PIO path: we wait for data to arrive via interrupt.
 	 * The hardware already has RXPKTRDY cleared after the last read.
 	 * When data arrives, the ISR sets xfer_finished and the thread
 	 * will read it.
@@ -768,6 +905,58 @@ static void udc_tiva_c_isr(const struct device *dev)
 	if ((HWREGB(base + USB_O_POWER) & USB_POWER_SUSPEND) != 0U) {
 		HWREGB(base + USB_O_POWER) &= ~USB_POWER_SUSPEND;
 	}
+
+#if defined(CONFIG_UDC_TIVA_C_DMA)
+	/*
+	 * DMA completions (Mode 0 suppresses the normal endpoint
+	 * interrupts for DMA'd endpoints). DMAINTR is read-to-clear;
+	 * process every channel from this snapshot. The per-channel
+	 * remaining count for RX is consumed by the thread when it
+	 * handles the XFER_FINISHED event, so store the snapshot.
+	 */
+	{
+		uint32_t dma_pending = USBDMAChannelIntStatus(base);
+
+		if (dma_pending != 0U) {
+			data->dma_pending = dma_pending;
+
+			for (uint8_t ch = 0U; ch < 8U; ch++) {
+				if ((dma_pending & BIT(ch)) == 0U) {
+					continue;
+				}
+
+				data->dma_ch[ch].active = false;
+
+				if (data->dma_ch[ch].in_use) {
+					uint8_t ep_addr = data->dma_ch[ch].ep;
+
+					/*
+					 * TX DMA Mode 0 moves memory->FIFO
+					 * only; TXPKTRDY must be set by
+					 * software afterwards to actually
+					 * send the packet on the wire.
+					 */
+					if (USB_EP_DIR_IS_IN(ep_addr)) {
+						uint32_t off = USB_O_TXCSRL1 +
+							0x10U * (ep_idx(ep_addr) - 1U);
+
+						HWREGB(base + off) =
+							USB_TXCSRL1_TXRDY;
+					}
+
+					atomic_set_bit(
+						&data->xfer_finished,
+						USB_EP_DIR_IS_IN(ep_addr) ?
+						16U + ep_idx(ep_addr) :
+						ep_idx(ep_addr));
+				}
+			}
+
+			k_event_post(&data->events,
+				     BIT(TIVA_C_EVT_XFER_FINISHED));
+		}
+	}
+#endif /* CONFIG_UDC_TIVA_C_DMA */
 
 	/* Read and clear control interrupt status */
 	ctrl_status = USBIntStatusControl(base);
@@ -1273,12 +1462,53 @@ static void udc_tiva_c_thread(const struct device *dev)
 					struct net_buf *buf = udc_buf_peek(cfg);
 					uint32_t count;
 					int32_t ret;
+#if defined(CONFIG_UDC_TIVA_C_DMA)
+					int dma_ch_out = -1;
+					bool dma_rx_done = false;
+					uint32_t dma_rx_len = 0;
+#endif
 
 					if (buf == NULL) {
 						/* No buffer queued, flush and continue */
 						USBFIFOFlush(base, tiva_ep, USB_EP_DEV_OUT);
 						goto unlock;
 					}
+
+#if defined(CONFIG_UDC_TIVA_C_DMA)
+					/* DMA RX completion: the engine already
+					 * moved the packet into the buffer;
+					 * the received length follows from
+					 * the remaining count register. */
+					dma_ch_out = dma_ch_for_ep(ep);
+					if (dma_ch_out >= 0 &&
+					    data->dma_ch[dma_ch_out].in_use &&
+					    (data->dma_pending & BIT(dma_ch_out)) != 0U) {
+						uint32_t rem =
+							USBDMAChannelCountGet(base, (uint32_t)dma_ch_out);
+
+						dma_rx_len = data->dma_ch[dma_ch_out].count - rem;
+						dma_rx_done = true;
+						data->dma_pending &= ~BIT(dma_ch_out);
+					}
+#endif
+
+#if defined(CONFIG_UDC_TIVA_C_DMA)
+					if (dma_rx_done) {
+						if (dma_rx_len > 0U) {
+							net_buf_add(buf, dma_rx_len);
+						}
+						/* Short packet or full buffer ends
+						 * the request; otherwise re-arm. */
+						if (dma_rx_len < cfg->mps ||
+						    net_buf_tailroom(buf) == 0U) {
+							tiva_c_complete_xfer(dev, cfg, 0);
+						} else {
+							udc_ep_set_busy(cfg, false);
+							tiva_c_start_out_xfer(dev, cfg);
+						}
+						continue;
+					}
+#endif /* CONFIG_UDC_TIVA_C_DMA */
 
 					count = net_buf_tailroom(buf);
 					ret = USBEndpointDataGet(base, tiva_ep,

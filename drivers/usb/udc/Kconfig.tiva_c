@@ -28,4 +28,12 @@ config UDC_TIVA_C_THREAD_PRIORITY
 	help
 	  Priority of the UDC driver thread.
 
+config UDC_TIVA_C_DMA
+	bool "Use the integrated USB DMA controller"
+	help
+	  Move endpoint data with the 8-channel DMA controller integrated
+	  in the MUSB IP instead of programmed FIFO I/O. EP0 stays PIO.
+	  Transfers whose buffer is not word aligned fall back to PIO for
+	  that transfer. DMA Mode 0 (one completion per packet) is used.
+
 endif # UDC_TIVA_C
