@@ -183,3 +183,8 @@ zephyr_udc0: &usb0 {
 	pinctrl-0 = <&usb0_dm_pd4 &usb0_dp_pd5>;
 	pinctrl-names = "default";
 };
+
+/* uDMA controller (system DMA for UART/SPI/ADC etc.) */
+&udma0 {
+	status = "okay";
+};

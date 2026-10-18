@@ -1,0 +1,17 @@
+# Copyright (c) 2026
+# SPDX-License-Identifier: Apache-2.0
+
+config DMA_TI_TM4C
+	bool "TI TM4C uDMA controller driver"
+	default y
+	depends on DT_HAS_TI_TIVA_C_UDMA_ENABLED
+	select USE_TIVAWARE_UDMA
+	select USE_TIVAWARE_SYSCTL
+	help
+	  DMA driver for the micro DMA controller (uDMA) of TI TM4C
+	  (Tiva C) microcontrollers. Channels 0..29 are hardwired to
+	  peripheral request signals; channel 30 serves software
+	  (memory to memory) requests. The driver reports completions
+	  of software channels through the controller's own interrupt;
+	  peripheral channels complete in the owning peripheral's
+	  interrupt and are polled by their drivers.

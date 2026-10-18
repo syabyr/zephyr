@@ -1,0 +1,27 @@
+# Copyright (c) 2026
+# SPDX-License-Identifier: Apache-2.0
+
+description: TI Tiva C micro DMA controller
+
+compatible: "ti,tiva-c-udma"
+
+include: dma-controller.yaml
+
+properties:
+  reg:
+    required: true
+
+  interrupts:
+    required: true
+
+  "#dma-cells":
+    const: 1
+# (dma-controller.yaml supplies #dma-cells requirements)
+
+# #dma-cells : Must be <1>.
+# The 1st cell specifies the channel number. Channels 0..29 are
+# hardwired to peripheral request signals (see the SoC datasheet
+# "uDMA Channel Assignments" table); channel 30 is the software
+# request channel used for memory to memory transfers.
+dma-cells:
+  - channel

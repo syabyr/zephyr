@@ -137,6 +137,15 @@
 			status = "disabled";
 		};
 
+		udma0: dma@400ff000 {
+			compatible = "ti,tiva-c-udma";
+			reg = <0x400FF000 0x1000>;
+			interrupts = <62 3>, <63 3>;
+			dma-channels = <32>;
+			#dma-cells = <1>;
+			status = "disabled";
+		};
+
 		hib: rtc@400fc000 {
 			compatible = "ti,tiva-c-hib-rtc";
 			reg = <0x400FC000 0x200>;
