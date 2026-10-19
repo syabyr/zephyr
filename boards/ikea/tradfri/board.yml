@@ -1,0 +1,6 @@
+board:
+  name: ikea_tradfri
+  full_name: IKEA TRÅDFRI (EFR32MG1P)
+  vendor: ikea
+  socs:
+    - name: efr32mg1p132f256gm32

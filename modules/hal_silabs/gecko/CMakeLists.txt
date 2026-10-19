@@ -147,6 +147,7 @@ zephyr_library_sources_ifdef(CONFIG_SOC_SERIES_EFR32BG13P  ${device_dir}/Silicon
 zephyr_library_sources_ifdef(CONFIG_SOC_SERIES_EFR32FG1P   ${device_dir}/SiliconLabs/EFR32FG1P/Source/system_efr32fg1p.c)
 zephyr_library_sources_ifdef(CONFIG_SOC_SERIES_EFR32FG13P  ${device_dir}/SiliconLabs/EFR32FG13P/Source/system_efr32fg13p.c)
 zephyr_library_sources_ifdef(CONFIG_SOC_SERIES_EFM32HG     ${device_dir}/SiliconLabs/EFM32HG/Source/system_efm32hg.c)
+zephyr_library_sources_ifdef(CONFIG_SOC_SERIES_EFR32MG1P   ${device_dir}/SiliconLabs/EFR32MG1P/Source/system_efr32mg1p.c)
 zephyr_library_sources_ifdef(CONFIG_SOC_SERIES_EFR32MG12P  ${device_dir}/SiliconLabs/EFR32MG12P/Source/system_efr32mg12p.c)
 zephyr_library_sources_ifdef(CONFIG_SOC_SERIES_EFR32MG13P  ${device_dir}/SiliconLabs/EFR32MG13P/Source/system_efr32mg13p.c)
 zephyr_library_sources_ifdef(CONFIG_SOC_SERIES_EFM32PG12B  ${device_dir}/SiliconLabs/EFM32PG12B/Source/system_efm32pg12b.c)

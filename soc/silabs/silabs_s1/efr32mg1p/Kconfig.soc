@@ -1,0 +1,18 @@
+# Copyright The Zephyr Project Contributors
+# SPDX-License-Identifier: Apache-2.0
+
+config SOC_SERIES_EFR32MG1P
+	bool
+	select SOC_FAMILY_SILABS_S1
+	help
+	  Silicon Labs EFR32MG1P (Mighty Gecko) Series MCU
+
+config SOC_EFR32MG1P132F256GM32
+	bool
+	select SOC_SERIES_EFR32MG1P
+
+config SOC_SERIES
+	default "efr32mg1p" if SOC_SERIES_EFR32MG1P
+
+config SOC
+	default "efr32mg1p132f256gm32" if SOC_EFR32MG1P132F256GM32

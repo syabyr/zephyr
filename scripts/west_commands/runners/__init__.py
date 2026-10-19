@@ -58,6 +58,7 @@ _names = [
     'openfpgaloader',
     'openocd',
     'probe_rs',
+    'pylink',
     'pyocd',
     'qemu',
     'renode',

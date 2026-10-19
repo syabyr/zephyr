@@ -1,0 +1,81 @@
+/*
+ * Copyright The Zephyr Project Contributors
+ *
+ * SPDX-License-Identifier: Apache-2.0
+ */
+
+/dts-v1/;
+#include <silabs/xg1/efr32mg1p132f256gm32.dtsi>
+#include "ikea_tradfri-pinctrl.dtsi"
+
+/ {
+	model = "IKEA TRÅDFRI (EFR32MG1P132F256GM32)";
+	compatible = "ikea,tradfri", "silabs,efr32mg1p";
+
+	aliases {
+		led0 = &led0;
+	};
+
+	chosen {
+		zephyr,console = &usart0;
+		zephyr,flash = &flash0;
+		zephyr,shell-uart = &usart0;
+		zephyr,sram = &sram0;
+		zephyr,uart-pipe = &usart0;
+	};
+
+	leds {
+		compatible = "gpio-leds";
+
+		led0: led_0 {
+			gpios = <&gpiob 13 GPIO_ACTIVE_LOW>;
+			label = "Indicator LED";
+		};
+	};
+};
+
+&cpu0 {
+	clock-frequency = <38400000>;
+};
+
+&clk_hfxo {
+	clock-frequency = <38400000>;
+	status = "okay";
+};
+
+&clk_hf {
+	clocks = <&clk_hfxo>;
+};
+
+&clk_lfrco {
+	status = "okay";
+};
+
+&clk_lfe {
+	clocks = <&clk_lfrco>;
+	status = "okay";
+};
+
+&usart0 {
+	current-speed = <115200>;
+	pinctrl-0 = <&usart0_default>;
+	pinctrl-names = "default";
+	status = "okay";
+};
+
+&rtcc0 {
+	prescaler = <1>;
+	status = "okay";
+};
+
+&gpio {
+	status = "okay";
+};
+
+&gpiob {
+	status = "okay";
+};
+
+&wdog0 {
+	status = "okay";
+};

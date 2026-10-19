@@ -1,0 +1,19 @@
+/*
+ * Copyright The Zephyr Project Contributors
+ *
+ * SPDX-License-Identifier: Apache-2.0
+ */
+
+#include <zephyr/dt-bindings/pinctrl/gecko-pinctrl-s1.h>
+
+&pinctrl {
+	/* configuration for usart0 device, default state - operating as UART */
+	usart0_default: usart0_default {
+		group1 {
+			psels = <GECKO_PSEL(UART_TX, B, 15)>,
+				<GECKO_PSEL(UART_RX, B, 14)>,
+				<GECKO_LOC(UART_TX, 10)>,
+				<GECKO_LOC(UART_RX, 8)>;
+		};
+	};
+};
