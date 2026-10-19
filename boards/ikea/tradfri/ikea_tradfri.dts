@@ -63,6 +63,26 @@
 	status = "okay";
 };
 
+/* USART1 in SPI master mode drives the on-board 256 kB SPI NOR flash. */
+&usart1 {
+	compatible = "silabs,usart-spi";
+	clock-frequency = <4000000>;
+	#address-cells = <1>;
+	#size-cells = <0>;
+	pinctrl-0 = <&usart1_default>;
+	pinctrl-names = "default";
+	cs-gpios = <&gpiob 11 GPIO_ACTIVE_LOW>;
+	status = "okay";
+
+	spi_flash: spi_flash@0 {
+		compatible = "jedec,spi-nor";
+		reg = <0>;
+		jedec-id = [9d 40 12];
+		size = <0x200000>; /* 2 Mbit */
+		spi-max-frequency = <4000000>;
+	};
+};
+
 &rtcc0 {
 	prescaler = <1>;
 	status = "okay";

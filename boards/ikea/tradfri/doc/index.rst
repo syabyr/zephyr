@@ -22,6 +22,7 @@ Hardware
 - RAM: 32 kB
 - Radio: 2.4 GHz (802.15.4 / Zigbee)
 - Crystal for HFXO (38.4 MHz)
+- On-board SPI NOR flash (IS25LQ020B, 256 kB)
 
 For more information about the EFR32MG1 SoC:
 
@@ -45,6 +46,18 @@ Serial Port
 
 USART0 is used for the console at 115200 baud. TX is routed to PB15 and RX to
 PB14.
+
+SPI NOR Flash
+=============
+
+USART1 is used in SPI master mode to drive the on-board 256 kB SPI NOR flash
+(ISSI IS25LQ020B). The flash is enabled through the ``jedec,spi-nor`` driver
+and is available to applications as the ``spi_flash`` device.
+
+- SCK on PD13
+- MOSI on PD15
+- MISO on PD14
+- CS on PB11
 
 Programming and Debugging
 *************************

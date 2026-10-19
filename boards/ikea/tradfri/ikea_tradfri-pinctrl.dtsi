@@ -16,4 +16,19 @@
 				<GECKO_LOC(UART_RX, 8)>;
 		};
 	};
+
+	/* configuration for usart1 device, default state - operating as SPI
+	 * master for the on-board SPI NOR flash (SCK on PD13, MOSI on PD15,
+	 * MISO on PD14). The three signals use different route locations.
+	 */
+	usart1_default: usart1_default {
+		group1 {
+			psels = <GECKO_PSEL(SPIM_SCK, D, 13)>,
+				<GECKO_PSEL(SPIM_MOSI, D, 15)>,
+				<GECKO_PSEL(SPIM_MISO, D, 14)>,
+				<GECKO_LOC(SPI_SCK, 19)>,
+				<GECKO_LOC(SPI_MOSI, 23)>,
+				<GECKO_LOC(SPI_MISO, 21)>;
+		};
+	};
 };
