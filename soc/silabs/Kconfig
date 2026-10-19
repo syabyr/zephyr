@@ -21,8 +21,13 @@ config SOC_VENDOR_SILABS_HAS_RADIO
 config SOC_GECKO_USE_RAIL
 	bool "Use RAIL (Radio Abstraction Interface Layer)"
 	depends on SOC_VENDOR_SILABS_HAS_RADIO
-	select SILABS_SISDK_LDMA
+	select SILABS_SISDK_LDMA if SOC_FAMILY_SILABS_S2 || SOC_FAMILY_SILABS_S3
 	select SILABS_SISDK_TIMER if BT_CHANNEL_SOUNDING
+	select SILABS_GECKO_LDMA if SOC_FAMILY_SILABS_S1
+	select SILABS_GECKO_PRS if SOC_FAMILY_SILABS_S1
+	select SILABS_GECKO_EMU if SOC_FAMILY_SILABS_S1
+	select SILABS_GECKO_POWER_MANAGER if SOC_FAMILY_SILABS_S1
+	select SILABS_GECKO_SLEEPTIMER if SOC_FAMILY_SILABS_S1
 	help
 	  RAIL (Radio Abstraction Interface Layer) is a library needed to use the EFR radio
 	  hardware. This option enable the proper set of features to allow to properly compile

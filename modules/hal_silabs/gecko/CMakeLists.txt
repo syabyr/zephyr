@@ -49,6 +49,10 @@ if(CONFIG_SOC_VENDOR_SILABS_HAS_RADIO)
 
   if(CONFIG_SOC_GECKO_USE_RAIL)
     # rail
+    zephyr_include_directories(
+      ${radio_dir}/rail_lib/protocol/ble
+      ${radio_dir}/rail_lib/protocol/ieee802154
+    )
     zephyr_library_sources(${radio_dir}/rail_lib/plugin/pa-conversions/pa_conversions_efr32.c)
     zephyr_library_sources(${radio_dir}/rail_lib/plugin/pa-conversions/pa_curves_efr32.c)
 
