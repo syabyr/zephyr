@@ -89,6 +89,11 @@ config SILABS_GECKO_LEUART
 	  Set if the Low Energy Universal Asynchronous Receiver/Transmitter (LEUART)
 	  HAL module is used.
 
+config SILABS_GECKO_LDMA
+	bool
+	help
+	  Set if the Linked DMA (LDMA) HAL module is used.
+
 config SILABS_GECKO_MSC
 	bool
 	help

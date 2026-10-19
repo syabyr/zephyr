@@ -133,6 +133,7 @@ zephyr_library_sources_ifdef(CONFIG_SILABS_GECKO_GPIO      ${emlib_dir}/src/em_g
 zephyr_library_sources_ifdef(CONFIG_SILABS_GECKO_I2C       ${emlib_dir}/src/em_i2c.c)
 zephyr_library_sources_ifdef(CONFIG_SILABS_GECKO_LETIMER   ${emlib_dir}/src/em_letimer.c)
 zephyr_library_sources_ifdef(CONFIG_SILABS_GECKO_LEUART    ${emlib_dir}/src/em_leuart.c)
+zephyr_library_sources_ifdef(CONFIG_SILABS_GECKO_LDMA      ${emlib_dir}/src/em_ldma.c)
 zephyr_library_sources_ifdef(CONFIG_SILABS_GECKO_MSC       ${emlib_dir}/src/em_msc.c)
 zephyr_library_sources_ifdef(CONFIG_SILABS_GECKO_PRS       ${emlib_dir}/src/em_prs.c)
 zephyr_library_sources_ifdef(CONFIG_SILABS_GECKO_RMU       ${emlib_dir}/src/em_rmu.c)
