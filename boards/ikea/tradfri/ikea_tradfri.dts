@@ -17,6 +17,10 @@
 	};
 
 	chosen {
+		/* RTCC is also the low power clock source, so the system
+		 * tick keeps running while the CPU is in EM1 or EM2.
+		 */
+		silabs,sleeptimer = &rtcc0;
 		zephyr,console = &usart0;
 		zephyr,flash = &flash0;
 		zephyr,shell-uart = &usart0;
