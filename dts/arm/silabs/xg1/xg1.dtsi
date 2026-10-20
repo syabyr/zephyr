@@ -163,6 +163,7 @@
 			compatible = "silabs,gecko-rtcc";
 			reg = <0x40042000 0x184>;
 			interrupts = <29 0>;
+			interrupt-names = "rtcc";
 			clock-frequency = <32768>;
 			prescaler = <1>;
 			status = "disabled";
