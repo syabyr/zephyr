@@ -596,6 +596,11 @@ static void handle_evt_setup(const struct device *dev)
 	bflb_set_ep_data1(dev, USB_CONTROL_EP_IN, true);
 
 	priv->setup_gen_serviced = priv->setup_gen;
+	LOG_DBG("SETUP %02x %02x v%04x i%04x l%04x gen %u",
+		priv->setup[0], priv->setup[1],
+		priv->setup[2] | (priv->setup[3] << 8),
+		priv->setup[4] | (priv->setup[5] << 8),
+		priv->setup[6] | (priv->setup[7] << 8), priv->setup_gen);
 	udc_setup_received(dev, priv->setup);
 }
 
@@ -743,6 +748,25 @@ static void handle_evt_dout(const struct device *dev,
 			return;
 		}
 
+		{
+			struct udc_buf_info *bi2 = udc_get_buf_info(buf);
+
+			LOG_DBG("EP0 OUT done len %u setup %u", buf->len, bi2->setup);
+
+			/*
+			 * A setup buffer that reaches the completion path without
+			 * its 8 setup bytes would be reported as a malformed setup
+			 * packet by the stack.  Put it back and wait for the next
+			 * SETUP token instead.
+			 */
+			if (bi2->setup && buf->len != sizeof(struct usb_setup_packet)) {
+				udc_ep_set_busy(ep_cfg, false);
+				udc_buf_put(ep_cfg, buf);
+				ep0_clear_nack_out(base);
+				return;
+			}
+		}
+
 		udc_ep_set_busy(ep_cfg, false);
 		udc_submit_ep_event(dev, buf, 0);
 		return;
@@ -820,7 +844,6 @@ static void reinit_ep0(const struct device *dev)
 	regval |= USB_CR_EP0_IN_DONE_EN;
 	regval |= USB_CR_EP0_OUT_DONE_EN;
 	regval |= USB_CR_USB_REND_EN;
-	regval |= USB_CR_USB_ERR_EN;
 	if (IS_ENABLED(CONFIG_UDC_ENABLE_SOF)) {
 		regval |= USB_CR_SOF_EN;
 	}
@@ -833,7 +856,6 @@ static void reinit_ep0(const struct device *dev)
 	regval &= ~USB_CR_EP0_IN_DONE_MASK;
 	regval &= ~USB_CR_EP0_OUT_DONE_MASK;
 	regval &= ~USB_CR_USB_REND_MASK;
-	regval &= ~USB_CR_USB_ERR_MASK;
 	if (IS_ENABLED(CONFIG_UDC_ENABLE_SOF)) {
 		regval &= ~USB_CR_SOF_MASK;
 	}
@@ -1673,6 +1695,17 @@ static int udc_bflb_v1_enable(const struct device *dev)
 	 * (e.g. UF2 bootloader).
 	 */
 	data->setup_pending = false;
+
+	/*
+	 * Re-initialize the PHY now that the system clocks are stable.
+	 * Doing this only from PRE_KERNEL_1 can latch the transceiver in a
+	 * UTMI receive-error state when the 48 MHz DLL output is not yet
+	 * stable, which prevents any control transfer from being received.
+	 */
+	if (xcvr_reset() != 0) {
+		return -ENODEV;
+	}
+	reinit_ep0(dev);
 
 	/* Enable USB controller */
 	sys_set_bits(base + USB_CONFIG_OFFSET, USB_CR_USB_EN);
