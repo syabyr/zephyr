@@ -30,6 +30,7 @@ _names = [
     'bflb_flash_command',
     'bflb_mcu_tool',
     'blackmagicprobe',
+    'blisp',
     'bossac',
     'canopen_program',
     'dediprog',
