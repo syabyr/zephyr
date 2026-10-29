@@ -13,4 +13,7 @@ include(${ZEPHYR_BASE}/boards/common/openocd.board.cmake)
 board_runner_args(bflb_mcu_tool --chipname bl702)
 include(${ZEPHYR_BASE}/boards/common/bflb_mcu_tool.board.cmake)
 
-board_set_flasher(bflb_mcu_tool)
+board_runner_args(blisp --chip=bl70x)
+board_finalize_runner_args(blisp)
+
+board_set_flasher(blisp)
